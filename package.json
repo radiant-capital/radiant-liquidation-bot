@@ -1,0 +1,22 @@
+{
+  "name": "radiant-liquidation-bot",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "start": "ts-node -r tsconfig-paths/register src/index.ts",
+    "serve": "ts-node-dev -r tsconfig-paths/register --respawn src/index.ts"
+  },
+  "dependencies": {
+    "@aave/math-utils": "0.27.2",
+    "dotenv": "^16.4.5",
+    "viem": "^2.10.5"
+  },
+  "devDependencies": {
+    "@types/node": "^20.12.11",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.4.5"
+  }
+}

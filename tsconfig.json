@@ -1,0 +1,24 @@
+{
+  "compilerOptions": {
+    "baseUrl": ".",
+    "target": "esnext",
+    "module": "commonjs",
+    "strict": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "outDir": "build",
+    "declaration": true,
+    "resolveJsonModule": true,
+    "types": ["node"],
+    "paths": {
+      "@abi/*": ["./src/abi/*"],
+      "@core/*": ["./src/core/*"],
+      "@utils/*": ["./src/utils/*"],
+      "@libs/*": ["./src/libs/*"],
+      "@entities/*": ["./src/entities/*"],
+    }
+  },
+  "include": ["./src", "./test"],
+  "exclude": ["./node_modules", "./build"],
+  "files": []
+}
