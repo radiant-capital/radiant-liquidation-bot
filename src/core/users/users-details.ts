@@ -7,12 +7,7 @@ import { jsonParseWithBigInt, jsonStringifyWithBigInt } from '@utils/json';
 import { loadAllUsersCached } from '@core/users/users-loader';
 import { loadAllChangedUsers } from '@core/users/users-changes';
 import { maxBI } from '@utils/bigint-math';
-
-interface UserDetails {
-  address: string;
-  reserves: UserReserveData[];
-  lastUpdateBlock: bigint;
-}
+import { UserDetails, UserDetailsMap } from '@core/users/entities';
 
 async function getUserReservesData(
   client: PublicClient,
@@ -43,8 +38,6 @@ async function getUserReservesData(
 
   return result;
 }
-
-type UserDetailsMap = Record<string, UserDetails>;
 
 async function getUserReservesDataInBatches(
   client: PublicClient,

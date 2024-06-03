@@ -1,41 +1,44 @@
 import { getCompoundedBalance, getCompoundedStableBalance, getLinearBalance } from './aave-math-utils';
-import { ReserveData, UserReserveData } from '@entities/reserves';
+import { ReserveData, ReservesDataByAsset, UserReserveData } from '@entities/reserves';
 
 function getUserReserveSummary(
-  scaledATokenBalance: bigint,
-  scaledVariableDebt: bigint,
-  principalStableDebt: bigint,
-  stableBorrowRate: bigint,
-  stableBorrowLastUpdateTimestamp: number,
-
-  liquidityIndex: bigint,
-  liquidityRate: bigint,
-  variableBorrowIndex: bigint,
-  variableBorrowRate: bigint,
-  lastUpdateTimestamp: number,
+  userReserve: Pick<
+    UserReserveData,
+    'scaledATokenBalance' |
+    'scaledVariableDebt' |
+    'principalStableDebt' |
+    'stableBorrowRate' |
+    'stableBorrowLastUpdateTimestamp'>,
+  reserve: Pick<
+    ReserveData,
+    'liquidityIndex' |
+    'liquidityRate' |
+    'variableBorrowIndex' |
+    'variableBorrowRate' |
+    'lastUpdateTimestamp'>,
   currentTimestamp: number,
 ) {
   const variableBorrows = getCompoundedBalance(
-    scaledVariableDebt,
-    variableBorrowIndex,
-    variableBorrowRate,
-    lastUpdateTimestamp,
+    userReserve.scaledVariableDebt,
+    reserve.variableBorrowIndex,
+    reserve.variableBorrowRate,
+    reserve.lastUpdateTimestamp,
     currentTimestamp,
   );
 
   const stableBorrows = getCompoundedStableBalance(
-    principalStableDebt,
-    stableBorrowRate,
-    stableBorrowLastUpdateTimestamp,
+    userReserve.principalStableDebt,
+    userReserve.stableBorrowRate,
+    Number(userReserve.stableBorrowLastUpdateTimestamp),
     currentTimestamp,
   );
 
   return {
     balance: getLinearBalance(
-      scaledATokenBalance,
-      liquidityIndex,
-      liquidityRate,
-      lastUpdateTimestamp,
+      userReserve.scaledATokenBalance,
+      reserve.liquidityIndex,
+      reserve.liquidityRate,
+      reserve.lastUpdateTimestamp,
       currentTimestamp
     ),
     totalBorrows: variableBorrows + stableBorrows
@@ -43,7 +46,7 @@ function getUserReserveSummary(
 }
 
 export function calculateUserHealthFactor(
-  reserves: ReserveData[],
+  reserveByAsset: ReservesDataByAsset,
   userReserves: UserReserveData[],
   currentTimestamp: number,
 ): {
@@ -51,31 +54,16 @@ export function calculateUserHealthFactor(
   totalBorrowsMF: bigint;
   totalCollateralMF: bigint;
 } {
-  const reserveByAsset = reserves.reduce((acc, item) => {
-    acc[item.underlyingAsset.toLowerCase()] = item;
-    return acc;
-  }, {} as Record<string, ReserveData>);
-
   let totalBorrowsMF = 0n;
   let totalCollateralMF = 0n;
   let currentLiquidationThreshold = 0n;
 
   for (const userReserve of userReserves) {
     const reserve = reserveByAsset[userReserve.underlyingAsset.toLowerCase()];
-    const { balance: reserveTotalBalance, totalBorrows: reserveTotalBorrows } = getUserReserveSummary(
-      userReserve.scaledATokenBalance,
-      userReserve.scaledVariableDebt,
-      userReserve.principalStableDebt,
-      userReserve.stableBorrowRate,
-      Number(userReserve.stableBorrowLastUpdateTimestamp),
-
-      reserve.liquidityIndex,
-      reserve.liquidityRate,
-      reserve.variableBorrowIndex,
-      reserve.variableBorrowRate,
-      reserve.lastUpdateTimestamp,
-      currentTimestamp,
-    );
+    const {
+      balance: reserveTotalBalance,
+      totalBorrows: reserveTotalBorrows
+    } = getUserReserveSummary(userReserve, reserve, currentTimestamp);
     const extraDecimals = (10n ** (18n - reserve.decimals));
     const reserveTotalBalanceMF = (reserveTotalBalance * reserve.priceInMarketReferenceCurrency * extraDecimals);
     const reserveTotalBorrowsMF = (reserveTotalBorrows * reserve.priceInMarketReferenceCurrency * extraDecimals);
@@ -100,7 +88,47 @@ export function calculateUserHealthFactor(
 
   return {
     healthFactor,
-    totalBorrowsMF,
-    totalCollateralMF,
+    totalBorrowsMF: totalBorrowsMF / (10n ** 18n),
+    totalCollateralMF: totalCollateralMF / (10n ** 18n),
   };
+}
+
+export type UserReserveDataSummary = {
+  underlyingAsset: string;
+  totalBorrows: bigint;
+  totalBorrowsMF: bigint;
+  collateralMF: bigint;
+  collateral: bigint;
+};
+
+export function calculateUserReservesSummary(
+  reserveByAsset: ReservesDataByAsset,
+  userReserves: UserReserveData[],
+  currentTimestamp: number,
+): UserReserveDataSummary[] {
+  const reserves: UserReserveDataSummary[] = [];
+
+  for (const userReserve of userReserves) {
+    const underlyingAsset = userReserve.underlyingAsset.toLowerCase();
+    const reserve = reserveByAsset[underlyingAsset];
+    const {
+      balance: reserveTotalBalance,
+      totalBorrows: reserveTotalBorrows
+    } = getUserReserveSummary(userReserve, reserve, currentTimestamp);
+    const extraDecimals = (10n ** (18n - reserve.decimals));
+    const reserveTotalBalanceMF = (reserveTotalBalance * reserve.priceInMarketReferenceCurrency * extraDecimals);
+    const reserveTotalBorrowsMF = (reserveTotalBorrows * reserve.priceInMarketReferenceCurrency * extraDecimals);
+
+    const isCollateral = reserve.reserveLiquidationThreshold > 0n && userReserve.usageAsCollateralEnabledOnUser;
+
+    reserves.push({
+      underlyingAsset,
+      totalBorrows: reserveTotalBorrows,
+      totalBorrowsMF: reserveTotalBorrowsMF / (10n ** 18n),
+      collateral: isCollateral ? reserveTotalBalance : 0n,
+      collateralMF: isCollateral ? reserveTotalBalanceMF / (10n ** 18n) : 0n,
+    });
+  }
+
+  return reserves;
 }

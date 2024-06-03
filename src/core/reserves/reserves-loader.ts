@@ -6,7 +6,7 @@ async function getReservesData(
   client: PublicClient,
   uiPoolDataProviderAddress: `0x${string}`,
   lendingPoolAddressesProvider: `0x${string}`,
-  blockNumber: bigint,
+  blockNumber?: bigint,
 ): Promise<ReserveData[]> {
   const reserves = await client.readContract({
     blockNumber,
@@ -29,7 +29,7 @@ export async function loadReservesData(
   client: PublicClient,
   uiPoolDataProviderAddress: `0x${string}`,
   lendingPoolAddressesProvider: `0x${string}`,
-  blockNumber: bigint,
+  blockNumber?: bigint,
 ): Promise<ReserveData[]> {
   return getReservesData(client, uiPoolDataProviderAddress, lendingPoolAddressesProvider, blockNumber);
 }

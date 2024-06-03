@@ -1,30 +1,63 @@
-import { createPublicClient, http, webSocket } from 'viem';
-import { arbitrum } from 'viem/chains';
-import { listenBlocksChanges } from '@core/blocks/block-resolver';
-import { loadReservesData } from '@core/reserves/reserves-loader';
 import {
-  loadAllUsersDetailsToLatestBlockCached,
-  loadUsersDetails, updateUsersDetailsMap
+  Account,
+  Chain,
+  createPublicClient,
+  createWalletClient, extractChain,
+  http,
+  PublicClient,
+  Transport,
+  WalletClient,
+  webSocket
+} from 'viem';
+import * as chains from 'viem/chains';
+import {
+  loadAllUsersDetailsToLatestBlockCached
 } from '@core/users/users-details';
-import { calculateUserHealthFactor } from '@libs/aave';
+import { listenLiquidationOpportunities } from '@core/opportunities/listener';
+import { privateKeyToAccount } from 'viem/accounts';
+import { environment } from '@entities/environment';
+import { filterLiquidationStrategies } from '@core/opportunities/strategies';
+import { approveReserves } from '@core/wallet/reserves-approval';
+import { loadReservesData } from '@core/reserves/reserves-loader';
+import { printBalancesOfReserves } from '@core/wallet/reserves-balances';
+import { sendStrategy } from '@core/wallet/sender';
 
-//http('https://arb1.arbitrum.io/rpc')
-//webSocket('wss://arbitrum-one-rpc.publicnode.com')
-//webSocket('wss://arb-mainnet.g.alchemy.com/v2/LLC4u016PAp3y4oXq7T29uCWKtcGmfPV')
+const account = privateKeyToAccount(environment.PRIVATE_KEY);
+const chain = extractChain({
+  chains: Object.values(chains),
+  id: environment.CHAIN_ID as any,
+})
+
 const client = createPublicClient({
   batch: {
     multicall: true,
   },
-  chain: arbitrum,
-  transport: http('https://arb1.arbitrum.io/rpc'),
-});
+  chain,
+  transport: environment.WS_JSON_RPC ? webSocket(environment.WS_JSON_RPC) : http(environment.HTTP_JSON_RPC)
+}) as PublicClient<Transport, Chain>;
+
+const walletClient = createWalletClient({
+  account,
+  chain,
+  transport: environment.WS_JSON_RPC ? webSocket(environment.WS_JSON_RPC) : http(environment.HTTP_JSON_RPC)
+}) as WalletClient<Transport, Chain, Account>;
 
 (async () => {
-  const initialBlock = 0n;
+  const initialBlock = environment.INITIAL_BLOCK;
 
   const lendingPoolAddress = '0xf4b1486dd74d07706052a33d31d7c0aafd0659e1';
   const uiPoolDataProviderAddress = '0x56d4b07292343b149e0c60c7c41b7b1eeefdd733';
   const lendingPoolAddressesProvider = '0x091d52cace1edc5527c99cdcfa6937c1635330e4';
+
+  console.log(`Launching on ${chain.name} (${chain.id}) ...`);
+
+  const reserves = await loadReservesData(client, uiPoolDataProviderAddress, lendingPoolAddressesProvider);
+
+  await printBalancesOfReserves(reserves, walletClient, client);
+
+  if (environment.APPROVE_RESERVES) {
+    await approveReserves(reserves, walletClient, client, lendingPoolAddress);
+  }
 
   const { usersMap, toBlock } = await loadAllUsersDetailsToLatestBlockCached(
     client,
@@ -34,38 +67,33 @@ const client = createPublicClient({
     initialBlock
   );
 
-  listenBlocksChanges(
+  listenLiquidationOpportunities(
+    usersMap,
+    toBlock,
     client,
     lendingPoolAddress,
-    toBlock,
-    async (changes) => {
-      const currentBlock = await client.getBlockNumber();
-      const [reserves, userDetailsChanges] = await Promise.all([
-        loadReservesData(client, uiPoolDataProviderAddress, lendingPoolAddressesProvider, currentBlock),
-        changes.changedUsers ? loadUsersDetails(client, uiPoolDataProviderAddress, lendingPoolAddressesProvider, changes.changedUsers, currentBlock) : Promise.resolve({} as any),
-      ]);
+    uiPoolDataProviderAddress,
+    lendingPoolAddressesProvider,
+    (opportunities, reservesByAsset, currentTimestamp, usersCount, tookMs) => {
+      console.log(`Found ${opportunities.length} opportunities of ${usersCount} users – in ${tookMs}ms`);
 
-      updateUsersDetailsMap(usersMap, userDetailsChanges);
+      const MIN_GROSS_PROFIT_MF = BigInt(Math.floor(environment.MIN_GROSS_PROFIT_USD * (10 ** 8)));
+      const { strategies, tookMs: strategiesTookMs } = filterLiquidationStrategies(
+        opportunities,
+        reservesByAsset,
+        lendingPoolAddress,
+        currentTimestamp,
+        MIN_GROSS_PROFIT_MF,
+      );
+      const minGrossProfitUSD = Math.round(Number(MIN_GROSS_PROFIT_MF / 10000n)) / 10000;
+      console.log(`Found ${strategies.length} strategies (min gross profit ${minGrossProfitUSD}) of ${opportunities.length} opportunities – in ${strategiesTookMs}ms`);
 
-      console.log('changes', changes);
-      console.log('currentBlock', currentBlock);
-      console.log('currentReserves', reserves.length);
-      console.log('currentUsersMap', Object.keys(usersMap).length);
+      for (const strategy of strategies) {
+        console.log(`[${strategy.id}] – `, `${Number(strategy.grossProfitMF) / 100000000} gross profit`);
 
-      const time = Date.now();
-      const currentTimestamp = Math.ceil(Date.now() / 1000);
-      const usersInDanger = [];
-      for (const user in usersMap) {
-        const { healthFactor, totalCollateralMF } = calculateUserHealthFactor(reserves, usersMap[user].reserves, currentTimestamp);
-
-        if (healthFactor < ((10n ** 18n)) && totalCollateralMF >= (10n ** 27n)) {
-          //health < 1 && collateral >= $10
-          usersInDanger.push(usersMap[user]);
-          console.log('user', user, Math.round(Number(healthFactor / (10n ** 14n))) / (10 ** 4));
-        }
+        sendStrategy(walletClient, client, strategy);
       }
-
-      console.log('usersInDanger', usersInDanger.length, `- done in ${Date.now() - time}ms`);
-    }
+    },
+    1000,
   );
 })();

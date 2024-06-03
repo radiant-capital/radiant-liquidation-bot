@@ -65,7 +65,6 @@ export function listenBlocksChanges(
   }, 1);
 
   const poll = client.transport.type !== 'webSocket';
-
   console.log(`Started listening for latest blocks:`, poll ? '(fallback to polling, no websocket provided!)' : '(optimized with websocket)');
 
   client.watchEvent({
@@ -83,5 +82,12 @@ export function listenBlocksChanges(
     onError: (error) => {
       throw error;
     },
+  });
+
+  onChanges({
+    fromBlock,
+    toBlock: fromBlock,
+    changedUsers: [],
+    updatedReserves: true,
   });
 }

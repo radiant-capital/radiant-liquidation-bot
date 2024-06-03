@@ -43,3 +43,12 @@ export interface UserReserveData {
   principalStableDebt: bigint;
   stableBorrowLastUpdateTimestamp: bigint;
 }
+
+export type ReservesDataByAsset = Record<string, ReserveData>;
+
+export function mapReservesByAsset(reserves: ReserveData[]): ReservesDataByAsset {
+  return reserves.reduce((acc, item) => {
+    acc[item.underlyingAsset.toLowerCase()] = item;
+    return acc;
+  }, {} as Record<string, ReserveData>);
+}

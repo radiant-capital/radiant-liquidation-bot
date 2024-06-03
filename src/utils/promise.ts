@@ -37,3 +37,15 @@ export function debounce<T>(fn: (...args: any[]) => Promise<T>, delay = 0): () =
     });
   };
 }
+
+export async function timeout<T>(promiseFn: () => Promise<T>, timeout: number, errorMessage = 'Promise timeout'): Promise<T> {
+  const result = await Promise.race([
+    promiseFn(),
+    (async () => {
+      await wait(timeout);
+      throw new Error(errorMessage);
+    })()
+  ]);
+
+  return result;
+}
