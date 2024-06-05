@@ -52,6 +52,21 @@ const STATE_CHANGING_EVENTS: StateChangingEvent[] = ([
   {
     name: 'LiquidationCall',
     changedUserKey: 'user',
+  },
+  /*{
+    //TODO: issues a Withdrawal on the same transaction
+    name: 'FlashLoan',
+    changedUserKey: ???,
+  },*/
+  {
+    //TODO: not found by topic 0x9f439ae0c81e41a04d3fdfe07aed54e6a179fb0db15be7702eb66fa8ef6f5300
+    name: 'RebalanceStableBorrowRate',
+    changedUserKey: 'user',
+  },
+  {
+    //TODO: not found by topic 0xea368a40e9570069bb8e6511d668293ad2e1f03b0d982431fd223de9f3b70ca6
+    name: 'Swap',
+    changedUserKey: 'user',
   }
 ] as Omit<StateChangingEvent, 'abi'>[])
   .map(item => ({...item, abi: findAbiEvent(LendingPoolAbi, item.name)}));
