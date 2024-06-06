@@ -45,9 +45,14 @@ const walletClient = createWalletClient({
 (async () => {
   const initialBlock = environment.INITIAL_BLOCK;
 
-  const lendingPoolAddress = '0xf4b1486dd74d07706052a33d31d7c0aafd0659e1';
+  const lendingPoolAddress = '0x2585a47ae536535639c02444ff122ab6b7c5d111';
   const uiPoolDataProviderAddress = '0x56d4b07292343b149e0c60c7c41b7b1eeefdd733';
-  const lendingPoolAddressesProvider = '0x091d52cace1edc5527c99cdcfa6937c1635330e4';
+  const lendingPoolAddressesProvider = '0x4c017d134ed4fdcf5e5246ef2ec7071dc4a97341';
+  const gmxLiquidatorAddress = '0x1723638b586331909ff85c2eaf5f121023b4825b';
+  const gmxTokensAddresses = [
+    '0x47c031236e19d024b42f8ae6780e44a573170703',
+    '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
+  ];
 
   console.log(`Launching on ${chain.name} (${chain.id}) ...`);
 
@@ -81,7 +86,11 @@ const walletClient = createWalletClient({
       const { strategies, tookMs: strategiesTookMs } = filterLiquidationStrategies(
         opportunities,
         reservesByAsset,
-        lendingPoolAddress,
+        {
+          lendingPoolAddress,
+          gmxLiquidatorAddress,
+          gmxTokensAddresses,
+        },
         currentTimestamp,
         MIN_GROSS_PROFIT_MF,
       );

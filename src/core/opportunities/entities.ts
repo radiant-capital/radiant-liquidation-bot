@@ -10,6 +10,13 @@ export interface LiquidationOpportunity {
   totalCollateralMF: bigint;
 }
 
+export interface TransactionCall {
+  address: `0x${string}`;
+  functionName: string;
+  args: any[];
+  abi: AbiItem[];
+}
+
 export interface LiquidationStrategy {
   id: string;
   opportunity: LiquidationOpportunity;
@@ -18,10 +25,5 @@ export interface LiquidationStrategy {
   collateralReserve: ReserveData;
   debtReserve: ReserveData;
   grossProfitMF: bigint;
-  call: {
-    address: `0x${string}`;
-    functionName: string;
-    args: any[];
-    abi: AbiItem[];
-  }
+  call: TransactionCall;
 }

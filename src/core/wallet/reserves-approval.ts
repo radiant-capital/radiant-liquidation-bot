@@ -1,5 +1,5 @@
 import { Account, Chain, PublicClient, Transport, WalletClient } from 'viem';
-import { approveSpenderIfNeeded } from '@core/wallet/approvals';
+import { approveSpenderIfNeeded } from '@libs/helpers/approvals';
 import { ReserveData } from '@entities/reserves';
 
 export async function approveReserves(

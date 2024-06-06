@@ -1,15 +1,59 @@
-import { LiquidationStrategy, LiquidationOpportunity } from '@core/opportunities/entities';
+import { LiquidationStrategy, LiquidationOpportunity, TransactionCall } from '@core/opportunities/entities';
+import GMXRadiantLiquidatorAbi from '@abi/GMXRadiantLiquidator.json';
 import LendingPoolAbi from '@abi/LendingPool.json';
 import { ReservesDataByAsset } from '@entities/reserves';
 import { calculateUserReservesSummary, UserReserveDataSummary } from '@libs/aave';
 import { minBI } from '@utils/bigint-math';
+import { includesAddress } from '@utils/addresses';
 
 
+
+interface LiquidationStrategiesContext {
+  lendingPoolAddress: `0x${string}`;
+  gmxLiquidatorAddress: `0x${string}`;
+  gmxTokensAddresses: string[];
+}
+
+export function createCall(
+  opportunity: LiquidationOpportunity,
+  collateralAsset: UserReserveDataSummary,
+  debtAsset: UserReserveDataSummary,
+  debtToCover: bigint,
+  context: LiquidationStrategiesContext,
+): TransactionCall {
+  if (includesAddress(context.gmxTokensAddresses, collateralAsset.underlyingAsset)) {
+    return {
+      address: context.gmxLiquidatorAddress,
+      abi: GMXRadiantLiquidatorAbi as any,
+      functionName: 'liquidatePosition',
+      args: [
+        opportunity.userDetails.address,
+        collateralAsset.underlyingAsset,
+        debtAsset.underlyingAsset,
+        debtToCover,
+        context.lendingPoolAddress,
+      ]
+    }
+  }
+
+  return {
+    address: context.lendingPoolAddress,
+    abi: LendingPoolAbi as any,
+    functionName: 'liquidationCall',
+    args: [
+      collateralAsset.underlyingAsset,
+      debtAsset.underlyingAsset,
+      opportunity.userDetails.address,
+      debtToCover,
+      false,
+    ]
+  };
+}
 
 export function findLiquidationStrategy(
   opportunity: LiquidationOpportunity,
   reservesByAsset: ReservesDataByAsset,
-  lendingPoolAddress: `0x${string}`,
+  context: LiquidationStrategiesContext,
   currentTimestamp: number,
 ): LiquidationStrategy | null {
   const usersSummary = calculateUserReservesSummary(reservesByAsset, opportunity.userDetails.reserves, currentTimestamp);
@@ -60,32 +104,21 @@ export function findLiquidationStrategy(
     collateralAsset,
     debtAsset,
     grossProfitMF,
-    call: {
-      address: lendingPoolAddress,
-      abi: LendingPoolAbi as any,
-      functionName: 'liquidationCall',
-      args: [
-        collateralAsset.underlyingAsset,
-        debtAsset.underlyingAsset,
-        opportunity.userDetails.address,
-        debtToCover,
-        false,
-      ]
-    }
+    call: createCall(opportunity, collateralAsset, debtAsset, debtToCover, context),
   };
 }
 
 export function filterLiquidationStrategies(
   opportunities: LiquidationOpportunity[],
   reservesByAsset: ReservesDataByAsset,
-  lendingPoolAddress: `0x${string}`,
+  context: LiquidationStrategiesContext,
   currentTimestamp: number,
   minGrossProfitMF?: bigint,
 ): { tookMs: number; strategies: LiquidationStrategy[] } {
   const time = Date.now();
 
   let strategies = opportunities
-    .map(opp => findLiquidationStrategy(opp, reservesByAsset, lendingPoolAddress, currentTimestamp))
+    .map(opp => findLiquidationStrategy(opp, reservesByAsset, context, currentTimestamp))
     .filter(Boolean) as LiquidationStrategy[];
 
   strategies = strategies.sort((a, b) => a.grossProfitMF < b.grossProfitMF ? 1 : a.grossProfitMF > b.grossProfitMF ? -1 : 0)
