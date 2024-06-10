@@ -20,7 +20,10 @@ import { filterLiquidationStrategies } from '@core/opportunities/strategies';
 import { approveReserves } from '@core/wallet/reserves-approval';
 import { loadReservesData } from '@core/reserves/reserves-loader';
 import { printBalancesOfReserves } from '@core/wallet/reserves-balances';
-import { sendStrategy } from '@core/wallet/sender';
+import { listenTokensSell } from '@core/swap/tokens-seller';
+import { sendLiquidationStrategy } from '@core/wallet/strategies-sender';
+import { sendTokenSell } from '@core/wallet/token-sell-sender';
+import { getGMXWithdrawalGasLimit } from '@core/opportunities/gmx-transfer-fee';
 
 const account = privateKeyToAccount(environment.PRIVATE_KEY);
 const chain = extractChain({
@@ -42,6 +45,10 @@ const walletClient = createWalletClient({
   transport: environment.WS_JSON_RPC ? webSocket(environment.WS_JSON_RPC) : http(environment.HTTP_JSON_RPC)
 }) as WalletClient<Transport, Chain, Account>;
 
+//TODO: approves
+//TODO: filter only to GMX collateral
+//TODO: env
+//TODO: token-sell overlaps
 (async () => {
   const initialBlock = environment.INITIAL_BLOCK;
 
@@ -53,6 +60,16 @@ const walletClient = createWalletClient({
     '0x47c031236e19d024b42f8ae6780e44a573170703',
     '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
   ];
+  const gmxSellTokensAddresses = [
+    '0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f',
+    '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
+    '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
+  ];
+  const gmxWithdrawalGasLimit = await getGMXWithdrawalGasLimit(
+    client,
+    '0xfd70de6b91282d8017aa4e741e9ae325cab992d8',
+    1.5
+  );
 
   console.log(`Launching on ${chain.name} (${chain.id}) ...`);
 
@@ -61,7 +78,7 @@ const walletClient = createWalletClient({
   await printBalancesOfReserves(reserves, walletClient, client);
 
   if (environment.APPROVE_RESERVES) {
-    await approveReserves(reserves, walletClient, client, lendingPoolAddress);
+    await approveReserves(reserves, walletClient, client, gmxLiquidatorAddress);
   }
 
   const { usersMap, toBlock } = await loadAllUsersDetailsToLatestBlockCached(
@@ -79,18 +96,14 @@ const walletClient = createWalletClient({
     lendingPoolAddress,
     uiPoolDataProviderAddress,
     lendingPoolAddressesProvider,
-    (opportunities, reservesByAsset, currentTimestamp, usersCount, tookMs) => {
+    (opportunities, reservesByAsset, gasPrice, currentTimestamp, usersCount, tookMs) => {
       console.log(`Found ${opportunities.length} opportunities of ${usersCount} users – in ${tookMs}ms`);
 
       const MIN_GROSS_PROFIT_MF = BigInt(Math.floor(environment.MIN_GROSS_PROFIT_USD * (10 ** 8)));
       const { strategies, tookMs: strategiesTookMs } = filterLiquidationStrategies(
         opportunities,
         reservesByAsset,
-        {
-          lendingPoolAddress,
-          gmxLiquidatorAddress,
-          gmxTokensAddresses,
-        },
+        { lendingPoolAddress, gmxLiquidatorAddress, gmxTokensAddresses, gmxWithdrawalGasLimit, gasPrice },
         currentTimestamp,
         MIN_GROSS_PROFIT_MF,
       );
@@ -100,9 +113,17 @@ const walletClient = createWalletClient({
       for (const strategy of strategies) {
         console.log(`[${strategy.id}] – `, `${Number(strategy.grossProfitMF) / 100000000} gross profit`);
 
-        sendStrategy(walletClient, client, strategy);
+        sendLiquidationStrategy(walletClient, client, strategy);
       }
     },
     1000,
+  );
+
+  listenTokensSell(
+    client,
+    { gmxLiquidatorAddress, gmxSellTokensAddresses },
+    (tokenSell) => {
+      sendTokenSell(walletClient, client, tokenSell);
+    }
   );
 })();

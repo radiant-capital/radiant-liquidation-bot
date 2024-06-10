@@ -1,20 +1,13 @@
 import { UserDetails } from '@core/users/entities';
-import { AbiItem } from 'viem';
 import { UserReserveDataSummary } from '@libs/aave';
 import { ReserveData } from '@entities/reserves';
+import { ContractCallData } from '@core/wallet/entities';
 
 export interface LiquidationOpportunity {
   userDetails: UserDetails;
   healthFactor: bigint;
   totalBorrowsMF: bigint;
   totalCollateralMF: bigint;
-}
-
-export interface TransactionCall {
-  address: `0x${string}`;
-  functionName: string;
-  args: any[];
-  abi: AbiItem[];
 }
 
 export interface LiquidationStrategy {
@@ -25,5 +18,5 @@ export interface LiquidationStrategy {
   collateralReserve: ReserveData;
   debtReserve: ReserveData;
   grossProfitMF: bigint;
-  call: TransactionCall;
+  callData: ContractCallData;
 }

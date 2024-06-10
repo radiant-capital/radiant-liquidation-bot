@@ -34,6 +34,13 @@ export interface ReserveData {
   stableRateSlope2: bigint;
 }
 
+export interface BaseCurrency {
+  marketReferenceCurrencyUnit: bigint;
+  marketReferenceCurrencyPriceInUsd: bigint;
+  networkBaseTokenPriceInUsd: bigint;
+  networkBaseTokenPriceDecimals: bigint;
+}
+
 export interface UserReserveData {
   underlyingAsset: string;
   scaledATokenBalance: bigint;

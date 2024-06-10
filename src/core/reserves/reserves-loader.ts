@@ -1,5 +1,5 @@
 import { PublicClient } from 'viem';
-import { ReserveData } from '@entities/reserves';
+import { BaseCurrency, ReserveData } from '@entities/reserves';
 import UiPoolDataProviderAbi from '@abi/UiPoolDataProvider.json';
 
 async function getReservesData(
@@ -16,11 +16,16 @@ async function getReservesData(
     args: [lendingPoolAddressesProvider]
   });
 
+  const baseCurrency: BaseCurrency = (reserves as any)?.[1] ?? {};
+  const resetDecimals = (price: bigint, baseCurrency: BaseCurrency, targetDecimals: bigint) => {
+    return price * (10n ** targetDecimals) / baseCurrency.marketReferenceCurrencyUnit;
+  }
+
   const data: ReserveData[] = ((reserves as any)?.[0] ?? []).map((reserve: ReserveData) => ({
     ...reserve,
     underlyingAsset: reserve.underlyingAsset.toLowerCase(),
+    priceInMarketReferenceCurrency: resetDecimals(reserve.priceInMarketReferenceCurrency, baseCurrency, 8n),
   }));
-  //const baseCurrency: ReserveData[] = (reserves as any)?.[1] ?? [];
 
   return data;
 }

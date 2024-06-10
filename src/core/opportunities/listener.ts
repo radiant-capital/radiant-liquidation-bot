@@ -15,14 +15,15 @@ function listenUsersDetailsUpdates(
   lendingPoolAddress: `0x${string}`,
   uiPoolDataProviderAddress: `0x${string}`,
   lendingPoolAddressesProvider: `0x${string}`,
-  onUpdate: (usersMap: UserDetailsMap, reserves: ReserveData[], blockNumber: bigint) => void,
+  onUpdate: (usersMap: UserDetailsMap, reserves: ReserveData[], blockNumber: bigint, gasPrice: bigint) => void,
   updateIntervalDelay: number,
 ) {
   let reserves: ReserveData[] = [];
   let blockNumber = 0n;
+  let gasPrice = 0n;
 
   const triggerUpdate = throttle(() => {
-    onUpdate(usersMap, reserves, blockNumber);
+    onUpdate(usersMap, reserves, blockNumber, gasPrice);
   }, 1000);
 
   listenBlocksChanges(
@@ -31,6 +32,7 @@ function listenUsersDetailsUpdates(
     listenFromBlock,
     async (changes) => {
       const currentBlock = await client.getBlockNumber();
+      const currentGasPrice = await client.getGasPrice();
       const [
         latestReserves,
         userDetailsChanges
@@ -42,6 +44,7 @@ function listenUsersDetailsUpdates(
       updateUsersDetailsMap(usersMap, userDetailsChanges);
       reserves = latestReserves;
       blockNumber = currentBlock;
+      gasPrice = currentGasPrice;
       triggerUpdate();
     }
   );
@@ -62,7 +65,7 @@ export function listenLiquidationOpportunities(
   lendingPoolAddress: `0x${string}`,
   uiPoolDataProviderAddress: `0x${string}`,
   lendingPoolAddressesProvider: `0x${string}`,
-  onOpportunitiesFound: (opportunities: LiquidationOpportunity[], reservesByAsset: ReservesDataByAsset, currentTimestamp: number, usersCount: number, tookMs: number) => void,
+  onOpportunitiesFound: (opportunities: LiquidationOpportunity[], reservesByAsset: ReservesDataByAsset, gasPrice: bigint, currentTimestamp: number, usersCount: number, tookMs: number) => void,
   updateIntervalDelay: number,
 ) {
   listenUsersDetailsUpdates(
@@ -72,7 +75,7 @@ export function listenLiquidationOpportunities(
     lendingPoolAddress,
     uiPoolDataProviderAddress,
     lendingPoolAddressesProvider,
-    (usersMap, reserves, blockNumber) => {
+    (usersMap, reserves, blockNumber, gasPrice) => {
       const time = Date.now();
       const currentTimestamp = Math.ceil(Date.now() / 1000);
       const opportunities: LiquidationOpportunity[] = [];
@@ -98,7 +101,7 @@ export function listenLiquidationOpportunities(
         usersCount++;
       }
 
-      onOpportunitiesFound(opportunities, reservesByAsset, currentTimestamp, usersCount, Date.now() - time);
+      onOpportunitiesFound(opportunities, reservesByAsset, gasPrice, currentTimestamp, usersCount, Date.now() - time);
     },
     updateIntervalDelay,
   );

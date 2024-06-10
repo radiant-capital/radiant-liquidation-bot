@@ -1,5 +1,7 @@
-import { LiquidationStrategy } from '@core/opportunities/entities';
 import { Account, Chain, PublicClient, Transport, WalletClient } from 'viem';
+import { LiquidationStrategy } from '@core/opportunities/entities';
+import { safeContractCall } from '@core/wallet/transactions-sender';
+
 
 
 interface LiquidationTransactionDetails {
@@ -9,7 +11,7 @@ interface LiquidationTransactionDetails {
 }
 
 const transactions: Record<string, LiquidationTransactionDetails> = {};
-export async function sendStrategy(
+export async function sendLiquidationStrategy(
   walletClient: WalletClient<Transport, Chain, Account>,
   client: PublicClient,
   strategy: LiquidationStrategy
@@ -28,34 +30,24 @@ export async function sendStrategy(
   transactions[strategy.id] = details;
 
   console.log(`Liquidation Submitted [${strategy.id}] – ${Number(strategy.grossProfitMF) / (10 ** 8)} gross profit`);
+  console.log(strategy.callData.address);
+  console.log(strategy.callData.functionName);
+  console.log(strategy.callData.args);
+  console.log(strategy.callData.value);
 
   try {
-    const gas = await client.estimateContractGas({
-      address: strategy.call.address,
-      abi: strategy.call.abi,
-      functionName: strategy.call.functionName,
-      args: strategy.call.args,
-      account: walletClient.account,
-    });
-
-    console.log(`Liquidation Estimated [${strategy.id}] – ${gas} gas used`);
-
-    const simulation = await client.simulateContract({
-      address: strategy.call.address,
-      abi: strategy.call.abi,
-      functionName: strategy.call.functionName,
-      args: strategy.call.args,
-      account: walletClient.account,
-    });
-
-    console.log(`Liquidation Simulated [${strategy.id}]:`, simulation);
-
-    details.hash = await walletClient.writeContract({
-      address: strategy.call.address,
-      abi: strategy.call.abi,
-      functionName: strategy.call.functionName,
-      args: strategy.call.args,
-    });
+    details.hash = await safeContractCall(
+      walletClient,
+      client,
+      strategy.callData,
+      (type, data) => {
+        if (type === 'estimatedGas') {
+          console.log(`Liquidation Estimated [${strategy.id}] – ${data} gas used`);
+        } else if (type === 'simulated') {
+          console.log(`Liquidation Simulated [${strategy.id}]:`, data);
+        }
+      }
+    )
 
     console.log(`Liquidation Sent [${strategy.id}] – hash ${details.hash}`);
 

@@ -2,6 +2,19 @@ export function wait(delay: number) {
   return new Promise((resolve) => setTimeout(resolve, delay))
 }
 
+export async function retry<T>(promiseFn: () => Promise<T>, retryCount: number = -1, delayMs = 5000) {
+  try {
+    return await promiseFn();
+  } catch (e) {
+    if (retryCount === 0) {
+      throw e;
+    } else {
+      const newRetryCount = retryCount === -1 ? retryCount : retryCount - 1;
+      return await retry(promiseFn, newRetryCount, delayMs);
+    }
+  }
+}
+
 export function debounce<T>(fn: (...args: any[]) => Promise<T>, delay = 0): () => Promise<T> {
   let timeoutId: any = null;
   let resolveList: any[] = [];

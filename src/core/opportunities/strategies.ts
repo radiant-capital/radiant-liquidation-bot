@@ -1,10 +1,11 @@
-import { LiquidationStrategy, LiquidationOpportunity, TransactionCall } from '@core/opportunities/entities';
+import { LiquidationStrategy, LiquidationOpportunity } from '@core/opportunities/entities';
 import GMXRadiantLiquidatorAbi from '@abi/GMXRadiantLiquidator.json';
 import LendingPoolAbi from '@abi/LendingPool.json';
 import { ReservesDataByAsset } from '@entities/reserves';
 import { calculateUserReservesSummary, UserReserveDataSummary } from '@libs/aave';
 import { minBI } from '@utils/bigint-math';
 import { includesAddress } from '@utils/addresses';
+import { ContractCallData } from '@core/wallet/entities';
 
 
 
@@ -12,15 +13,17 @@ interface LiquidationStrategiesContext {
   lendingPoolAddress: `0x${string}`;
   gmxLiquidatorAddress: `0x${string}`;
   gmxTokensAddresses: string[];
+  gmxWithdrawalGasLimit: bigint;
+  gasPrice: bigint;
 }
 
-export function createCall(
+export function createContractCall(
   opportunity: LiquidationOpportunity,
   collateralAsset: UserReserveDataSummary,
   debtAsset: UserReserveDataSummary,
   debtToCover: bigint,
   context: LiquidationStrategiesContext,
-): TransactionCall {
+): ContractCallData {
   if (includesAddress(context.gmxTokensAddresses, collateralAsset.underlyingAsset)) {
     return {
       address: context.gmxLiquidatorAddress,
@@ -32,7 +35,8 @@ export function createCall(
         debtAsset.underlyingAsset,
         debtToCover,
         context.lendingPoolAddress,
-      ]
+      ],
+      value: context.gmxWithdrawalGasLimit * context.gasPrice
     }
   }
 
@@ -61,6 +65,7 @@ export function findLiquidationStrategy(
     acc[key] = (2n ** 256n - 1n);
     return acc;
   }, {} as any);
+  const availableTargetAssets = context.gmxTokensAddresses;
 
   let debtAsset: UserReserveDataSummary | null = null;
   let collateralAsset: UserReserveDataSummary | null = null;
@@ -75,7 +80,10 @@ export function findLiquidationStrategy(
       debtAsset = item;
     }
 
-    if (collateralAsset === null || (collateralAsset as UserReserveDataSummary).collateralMF < item.collateralMF) {
+    if (
+      includesAddress(availableTargetAssets, item.underlyingAsset) &&
+      (collateralAsset === null || (collateralAsset as UserReserveDataSummary).collateralMF < item.collateralMF)
+    ) {
       collateralAsset = item;
     }
   }
@@ -104,7 +112,7 @@ export function findLiquidationStrategy(
     collateralAsset,
     debtAsset,
     grossProfitMF,
-    call: createCall(opportunity, collateralAsset, debtAsset, debtToCover, context),
+    callData: createContractCall(opportunity, collateralAsset, debtAsset, debtToCover, context),
   };
 }
 
