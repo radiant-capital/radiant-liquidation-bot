@@ -12,11 +12,10 @@ export interface Environment {
   APPROVE_RESERVES: boolean;
   MIN_GROSS_PROFIT_USD: number;
 
-  LIQUIDATION_COLLATERAL_ASSETS: string[];
-  LIQUIDATION_DEBT_ASSETS: string[];
+  LIQUIDATION_COLLATERAL_ASSETS: string[] | null;
+  LIQUIDATION_DEBT_ASSETS: string[] | null;
 
   UI_POOL_DATA_PROVIDER_ADDRESS: `0x${string}`;
-  LENDING_POOL_ADDRESS: `0x${string}`;
   LENDING_POOL_ADDRESSES_PROVIDER: `0x${string}`;
 
   GMX_DATA_STORE_ADDRESS: `0x${string}`;
@@ -38,11 +37,10 @@ export const environment: Environment = {
   LIQUIDATION_DEBT_ASSETS: parseAddresses(process.env.LIQUIDATION_DEBT_ASSETS),
 
   UI_POOL_DATA_PROVIDER_ADDRESS: parseAddress(process.env.UI_POOL_DATA_PROVIDER_ADDRESS, true),
-  LENDING_POOL_ADDRESS: parseAddress(process.env.LENDING_POOL_ADDRESS, true),
   LENDING_POOL_ADDRESSES_PROVIDER: parseAddress(process.env.LENDING_POOL_ADDRESSES_PROVIDER, true),
 
   GMX_DATA_STORE_ADDRESS: parseAddress(process.env.GMX_DATA_STORE_ADDRESS, true),
   GMX_LIQUIDATOR_ADDRESS: parseAddress(process.env.GMX_LIQUIDATOR_ADDRESS, true),
-  GMX_TOKENS_ADDRESSES: parseAddresses(process.env.GMX_TOKENS_ADDRESSES),
-  GMX_SELL_TOKENS_ADDRESSES: parseAddresses(process.env.GMX_SELL_TOKENS_ADDRESSES),
+  GMX_TOKENS_ADDRESSES: parseAddresses(process.env.GMX_TOKENS_ADDRESSES) ?? [],
+  GMX_SELL_TOKENS_ADDRESSES: parseAddresses(process.env.GMX_SELL_TOKENS_ADDRESSES) ?? [],
 }

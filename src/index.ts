@@ -24,6 +24,7 @@ import { listenTokensSell } from '@core/swap/tokens-seller';
 import { sendLiquidationStrategy } from '@core/wallet/strategies-sender';
 import { sendTokenSell } from '@core/wallet/token-sell-sender';
 import { getGMXWithdrawalGasLimit } from '@core/opportunities/gmx-transfer-fee';
+import { getLendingPoolAddress } from '@core/reserves/lending-pool-addresses-provider';
 
 const account = privateKeyToAccount(environment.PRIVATE_KEY);
 const chain = extractChain({
@@ -49,19 +50,19 @@ const walletClient = createWalletClient({
 (async () => {
   const initialBlock = environment.INITIAL_BLOCK;
 
-  const lendingPoolAddress = environment.LENDING_POOL_ADDRESS;
-  const uiPoolDataProviderAddress =environment.UI_POOL_DATA_PROVIDER_ADDRESS;
+  const uiPoolDataProviderAddress = environment.UI_POOL_DATA_PROVIDER_ADDRESS;
   const lendingPoolAddressesProvider = environment.LENDING_POOL_ADDRESSES_PROVIDER;
   const gmxLiquidatorAddress = environment.GMX_LIQUIDATOR_ADDRESS;
   const gmxTokensAddresses = environment.GMX_TOKENS_ADDRESSES;
   const gmxSellTokensAddresses = environment.GMX_SELL_TOKENS_ADDRESSES;
   const gmxWithdrawalGasLimit = await getGMXWithdrawalGasLimit(client, environment.GMX_DATA_STORE_ADDRESS, 1.5);
-  const liquidationCollateralAssets = environment.LIQUIDATION_COLLATERAL_ASSETS;
-  const liquidationDebtAssets = environment.LIQUIDATION_DEBT_ASSETS;
 
   console.log(`Launching on ${chain.name} (${chain.id}) ...`);
 
+  const lendingPoolAddress = await getLendingPoolAddress(client, lendingPoolAddressesProvider);
   const reserves = await loadReservesData(client, uiPoolDataProviderAddress, lendingPoolAddressesProvider);
+  const liquidationCollateralAssets = environment.LIQUIDATION_COLLATERAL_ASSETS ?? reserves.map(res => res.underlyingAsset.toLowerCase());
+  const liquidationDebtAssets = environment.LIQUIDATION_DEBT_ASSETS ?? reserves.map(res => res.underlyingAsset.toLowerCase());
 
   await printBalancesOfReserves(reserves, walletClient, client);
 

@@ -38,6 +38,8 @@ export async function approveReserves(
       };
     });
 
+  console.log(`Approvals of ${walletClient.account.address}:`);
+
   for (let i = 0; i < approvalRequests.length; i++) {
     const approvalRequest = approvalRequests[i];
     const { reserve, spenderAddress, spenderName } = approvalRequest;
@@ -49,7 +51,7 @@ export async function approveReserves(
       spenderAddress,
     );
 
-    console.log(`Approved: [${i + 1} / ${approvalRequests.length}]`, `${reserve.symbol} to ${spenderName} – ${result.approveHash ? `approved just now ${result.approveHash}` : `enough allowance`}`);
+    console.log(`Approval: [${i + 1} / ${approvalRequests.length}]`, `${reserve.symbol} to ${spenderName} – ${result.approveHash ? `approved just now ${result.approveHash}` : `enough allowance`}`);
   }
 
   console.log(`Approved all reserves – in ${(Date.now() - time) / 1000} sec`)
