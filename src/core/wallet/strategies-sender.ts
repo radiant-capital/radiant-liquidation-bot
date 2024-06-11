@@ -1,6 +1,7 @@
 import { Account, Chain, PublicClient, Transport, WalletClient } from 'viem';
 import { LiquidationStrategy } from '@core/opportunities/entities';
 import { safeContractCall } from '@core/wallet/transactions-sender';
+import { waitForTransactionReceipt } from 'viem/actions';
 
 
 
@@ -30,10 +31,7 @@ export async function sendLiquidationStrategy(
   transactions[strategy.id] = details;
 
   console.log(`Liquidation Submitted [${strategy.id}] – ${Number(strategy.grossProfitMF) / (10 ** 8)} gross profit`);
-  console.log(strategy.callData.address);
-  console.log(strategy.callData.functionName);
-  console.log(strategy.callData.args);
-  console.log(strategy.callData.value);
+  console.log(strategy.callData.address, strategy.callData.functionName, strategy.callData.args, strategy.callData.value);
 
   try {
     details.hash = await safeContractCall(
@@ -44,28 +42,32 @@ export async function sendLiquidationStrategy(
         if (type === 'estimatedGas') {
           console.log(`Liquidation Estimated [${strategy.id}] – ${data} gas used`);
         } else if (type === 'simulated') {
-          console.log(`Liquidation Simulated [${strategy.id}]:`, data);
+          console.log(`Liquidation Simulated [${strategy.id}]:`, data?.result);
         }
       }
     )
 
     console.log(`Liquidation Sent [${strategy.id}] – hash ${details.hash}`);
-
-    const [transaction, receipt] = await Promise.all([
-      client.getTransaction({ hash: details.hash as any }),
-      client.getTransactionReceipt({ hash: details.hash as any }),
-    ]);
-
-    console.log(`Liquidation Receipt [${strategy.id}]:`, transaction, receipt);
-
-    if (receipt.status === 'success') {
-      details.status = 'success';
-    } else {
-      throw new Error('Transaction Reverted');
-    }
   } catch (e) {
     console.log(`Liquidation Error [${strategy.id}]:`);
     console.error(e);
     details.status = 'error';
+  }
+
+  if (details.hash) {
+    try {
+      const receipt = await waitForTransactionReceipt(client, { hash: details.hash as any, confirmations: 10 });
+      console.log(`Liquidation Receipt [${strategy.id}] – ${receipt.status}`);
+      if (receipt.status !== 'success') {
+        console.log(receipt);
+        details.status = 'error';
+      } else {
+        details.status = 'success';
+      }
+    } catch (e) {
+      console.log(`Liquidation Receipt [${strategy.id}] – error`);
+      console.error(e);
+      details.status = 'error';
+    }
   }
 }

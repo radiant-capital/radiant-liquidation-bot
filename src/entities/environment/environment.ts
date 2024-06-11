@@ -10,6 +10,7 @@ export interface Environment {
   CHAIN_ID: number;
   INITIAL_BLOCK: bigint;
   APPROVE_RESERVES: boolean;
+  SEND_TRANSACTIONS: boolean;
   MIN_GROSS_PROFIT_USD: number;
 
   LIQUIDATION_COLLATERAL_ASSETS: string[] | null;
@@ -31,6 +32,7 @@ export const environment: Environment = {
   CHAIN_ID: Number(process.env.CHAIN_ID),
   INITIAL_BLOCK: BigInt(process.env.INITIAL_BLOCK || '0'),
   APPROVE_RESERVES: process.env.APPROVE_RESERVES === 'true',
+  SEND_TRANSACTIONS: process.env.SEND_TRANSACTIONS === 'true',
   MIN_GROSS_PROFIT_USD: Number(process.env.MIN_GROSS_PROFIT_USD),
 
   LIQUIDATION_COLLATERAL_ASSETS: parseAddresses(process.env.LIQUIDATION_COLLATERAL_ASSETS),

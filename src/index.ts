@@ -46,7 +46,8 @@ const walletClient = createWalletClient({
   transport: environment.WS_JSON_RPC ? webSocket(environment.WS_JSON_RPC) : http(environment.HTTP_JSON_RPC)
 }) as WalletClient<Transport, Chain, Account>;
 
-//TODO: token-sell overlaps
+
+
 (async () => {
   const initialBlock = environment.INITIAL_BLOCK;
 

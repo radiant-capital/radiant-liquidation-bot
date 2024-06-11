@@ -1,5 +1,6 @@
 import { Account, Chain, parseEther, PublicClient, Transport, WalletClient } from 'viem';
 import { ContractCallData } from '@core/wallet/entities';
+import { environment } from '@entities/environment';
 
 
 
@@ -25,6 +26,10 @@ export async function contractCall(
 ): Promise<`0x${string}`> {
   if (callData.value !== undefined && callData.value >= parseEther('0.1')) {
     throw new Error('Abnormal Transaction Value – too high');
+  }
+
+  if (!environment.SEND_TRANSACTIONS) {
+    throw new Error('Transaction Send isn\'t allowed');
   }
 
   return await walletClient.writeContract({
@@ -54,5 +59,5 @@ export async function safeContractCall(
     account: walletClient.account,
   });
   onActionComplete?.('simulated', simulation);
-  return await contractCall(walletClient, callData, gas);
+  return await contractCall(walletClient, callData, (gas * 150n / 100n));
 }
