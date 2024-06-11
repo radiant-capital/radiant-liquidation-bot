@@ -45,31 +45,19 @@ const walletClient = createWalletClient({
   transport: environment.WS_JSON_RPC ? webSocket(environment.WS_JSON_RPC) : http(environment.HTTP_JSON_RPC)
 }) as WalletClient<Transport, Chain, Account>;
 
-//TODO: approves
-//TODO: filter only to GMX collateral
-//TODO: env
 //TODO: token-sell overlaps
 (async () => {
   const initialBlock = environment.INITIAL_BLOCK;
 
-  const lendingPoolAddress = '0x2585a47ae536535639c02444ff122ab6b7c5d111';
-  const uiPoolDataProviderAddress = '0x56d4b07292343b149e0c60c7c41b7b1eeefdd733';
-  const lendingPoolAddressesProvider = '0x4c017d134ed4fdcf5e5246ef2ec7071dc4a97341';
-  const gmxLiquidatorAddress = '0x1723638b586331909ff85c2eaf5f121023b4825b';
-  const gmxTokensAddresses = [
-    '0x47c031236e19d024b42f8ae6780e44a573170703',
-    '0x70d95587d40a2caf56bd97485ab3eec10bee6336',
-  ];
-  const gmxSellTokensAddresses = [
-    '0x2f2a2543b76a4166549f7aab2e75bef0aefc5b0f',
-    '0xaf88d065e77c8cc2239327c5edb3a432268e5831',
-    '0x82af49447d8a07e3bd95bd0d56f35241523fbab1',
-  ];
-  const gmxWithdrawalGasLimit = await getGMXWithdrawalGasLimit(
-    client,
-    '0xfd70de6b91282d8017aa4e741e9ae325cab992d8',
-    1.5
-  );
+  const lendingPoolAddress = environment.LENDING_POOL_ADDRESS;
+  const uiPoolDataProviderAddress =environment.UI_POOL_DATA_PROVIDER_ADDRESS;
+  const lendingPoolAddressesProvider = environment.LENDING_POOL_ADDRESSES_PROVIDER;
+  const gmxLiquidatorAddress = environment.GMX_LIQUIDATOR_ADDRESS;
+  const gmxTokensAddresses = environment.GMX_TOKENS_ADDRESSES;
+  const gmxSellTokensAddresses = environment.GMX_SELL_TOKENS_ADDRESSES;
+  const gmxWithdrawalGasLimit = await getGMXWithdrawalGasLimit(client, environment.GMX_DATA_STORE_ADDRESS, 1.5);
+  const liquidationCollateralAssets = environment.LIQUIDATION_COLLATERAL_ASSETS;
+  const liquidationDebtAssets = environment.LIQUIDATION_DEBT_ASSETS;
 
   console.log(`Launching on ${chain.name} (${chain.id}) ...`);
 
@@ -78,7 +66,7 @@ const walletClient = createWalletClient({
   await printBalancesOfReserves(reserves, walletClient, client);
 
   if (environment.APPROVE_RESERVES) {
-    await approveReserves(reserves, walletClient, client, gmxLiquidatorAddress);
+    await approveReserves(reserves, walletClient, client, lendingPoolAddress, gmxLiquidatorAddress, gmxTokensAddresses, liquidationCollateralAssets);
   }
 
   const { usersMap, toBlock } = await loadAllUsersDetailsToLatestBlockCached(
@@ -102,8 +90,15 @@ const walletClient = createWalletClient({
       const MIN_GROSS_PROFIT_MF = BigInt(Math.floor(environment.MIN_GROSS_PROFIT_USD * (10 ** 8)));
       const { strategies, tookMs: strategiesTookMs } = filterLiquidationStrategies(
         opportunities,
-        reservesByAsset,
-        { lendingPoolAddress, gmxLiquidatorAddress, gmxTokensAddresses, gmxWithdrawalGasLimit, gasPrice },
+        reservesByAsset, {
+          lendingPoolAddress,
+          gmxLiquidatorAddress,
+          gmxTokensAddresses,
+          liquidationCollateralAssets,
+          liquidationDebtAssets,
+          gmxWithdrawalGasLimit,
+          gasPrice
+        },
         currentTimestamp,
         MIN_GROSS_PROFIT_MF,
       );

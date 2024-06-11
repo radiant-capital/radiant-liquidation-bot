@@ -13,6 +13,8 @@ interface LiquidationStrategiesContext {
   lendingPoolAddress: `0x${string}`;
   gmxLiquidatorAddress: `0x${string}`;
   gmxTokensAddresses: string[];
+  liquidationCollateralAssets: string[];
+  liquidationDebtAssets: string[];
   gmxWithdrawalGasLimit: bigint;
   gasPrice: bigint;
 }
@@ -61,11 +63,10 @@ export function findLiquidationStrategy(
   currentTimestamp: number,
 ): LiquidationStrategy | null {
   const usersSummary = calculateUserReservesSummary(reservesByAsset, opportunity.userDetails.reserves, currentTimestamp);
-  const availableAssetsMF: Record<string, bigint> = Object.keys(reservesByAsset).reduce((acc, key) => {
-    acc[key] = (2n ** 256n - 1n);
+  const availableAssetsMF: Record<string, bigint> = context.liquidationDebtAssets.reduce((acc, key) => {
+    acc[key.toLowerCase()] = (2n ** 256n - 1n);
     return acc;
   }, {} as any);
-  const availableTargetAssets = context.gmxTokensAddresses;
 
   let debtAsset: UserReserveDataSummary | null = null;
   let collateralAsset: UserReserveDataSummary | null = null;
@@ -81,7 +82,7 @@ export function findLiquidationStrategy(
     }
 
     if (
-      includesAddress(availableTargetAssets, item.underlyingAsset) &&
+      includesAddress(context.liquidationCollateralAssets, item.underlyingAsset) &&
       (collateralAsset === null || (collateralAsset as UserReserveDataSummary).collateralMF < item.collateralMF)
     ) {
       collateralAsset = item;
