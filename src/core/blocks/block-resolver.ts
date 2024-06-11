@@ -53,6 +53,7 @@ export function listenBlocksChanges(
   address: `0x${string}`,
   fromBlock: bigint,
   onChanges: (changes: ResolvedBlocksChanges) => void,
+  reservesFallbackUpdateInterval = 5000,
 ) {
   let bufferedLogs: Log[] = [];
 
@@ -90,4 +91,16 @@ export function listenBlocksChanges(
     changedUsers: [],
     updatedReserves: true,
   });
+
+  if (reservesFallbackUpdateInterval) {
+    setInterval(async () => {
+      const blockNumber = await client.getBlockNumber();
+      onChanges({
+        fromBlock: blockNumber,
+        toBlock: blockNumber,
+        changedUsers: [],
+        updatedReserves: true,
+      })
+    }, reservesFallbackUpdateInterval);
+  }
 }
