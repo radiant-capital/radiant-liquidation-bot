@@ -1,3 +1,3 @@
-function listenForUnhandledRejection(listener: (error: Error) => void) {
+export function listenForUnhandledRejection(listener: (error: Error) => void) {
   process.on('unhandledRejection', listener);
 }

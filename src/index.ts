@@ -25,6 +25,7 @@ import { sendLiquidationStrategy } from '@core/wallet/strategies-sender';
 import { sendTokenSell } from '@core/wallet/token-sell-sender';
 import { getGMXWithdrawalGasLimit } from '@core/opportunities/gmx-transfer-fee';
 import { getLendingPoolAddress } from '@core/reserves/lending-pool-addresses-provider';
+import { listenForUnhandledRejection } from '@utils/process';
 
 listenForUnhandledRejection(error => { throw error; });
 
