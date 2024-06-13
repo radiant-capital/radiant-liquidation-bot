@@ -2,7 +2,7 @@ import { PublicClient } from 'viem';
 import { listenBlocksChanges } from '@core/blocks/block-resolver';
 import { loadReservesData } from '@core/reserves/reserves-loader';
 import { loadUsersDetails, updateUsersDetailsMap } from '@core/users/users-details';
-import { UserDetailsMap } from '@core/users/entities';
+import { includesCollateralAsset, UserDetailsMap } from '@core/users/entities';
 import { throttle } from '@utils/timing';
 import { mapReservesByAsset, ReserveData, ReservesDataByAsset } from '@entities/reserves';
 import { calculateUserHealthFactor } from '@libs/aave';
@@ -65,9 +65,12 @@ export function listenLiquidationOpportunities(
   lendingPoolAddress: `0x${string}`,
   uiPoolDataProviderAddress: `0x${string}`,
   lendingPoolAddressesProvider: `0x${string}`,
+  liquidationCollateralAssets: string[],
   onOpportunitiesFound: (opportunities: LiquidationOpportunity[], reservesByAsset: ReservesDataByAsset, gasPrice: bigint, currentTimestamp: number, usersCount: number, tookMs: number) => void,
   updateIntervalDelay: number,
 ) {
+  const liquidationCollateralAssetsSet = new Set(liquidationCollateralAssets.map(address => address.toLowerCase()));
+
   listenUsersDetailsUpdates(
     usersMap,
     listenFromBlock,
@@ -83,6 +86,10 @@ export function listenLiquidationOpportunities(
 
       let usersCount = 0;
       for (const user in usersMap) {
+        if (!includesCollateralAsset(usersMap[user], liquidationCollateralAssetsSet)) {
+          continue;
+        }
+
         const {
           healthFactor,
           totalCollateralMF,

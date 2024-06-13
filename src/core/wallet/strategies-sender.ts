@@ -31,7 +31,13 @@ export async function sendLiquidationStrategy(
   transactions[strategy.id] = details;
 
   console.log(`Liquidation Submitted [${strategy.id}] – ${Number(strategy.grossProfitMF) / (10 ** 8)} gross profit`);
-  console.log(strategy.callData.address, strategy.callData.functionName, strategy.callData.args, strategy.callData.value);
+  console.log(
+    `Liquidation Strategy: ${strategy.debtReserve.symbol} -> ${strategy.collateralReserve.symbol}`,
+    strategy.callData.address,
+    strategy.callData.functionName,
+    strategy.callData.args,
+    strategy.callData.value
+  );
 
   try {
     details.hash = await safeContractCall(

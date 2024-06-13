@@ -83,7 +83,8 @@ export function findLiquidationStrategy(
 
     if (
       includesAddress(context.liquidationCollateralAssets, item.underlyingAsset) &&
-      (collateralAsset === null || (collateralAsset as UserReserveDataSummary).collateralMF < item.collateralMF)
+      (collateralAsset === null || (collateralAsset as UserReserveDataSummary).collateralMF < item.collateralMF) &&
+      item.collateral > 0n
     ) {
       collateralAsset = item;
     }

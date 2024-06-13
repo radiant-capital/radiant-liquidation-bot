@@ -88,6 +88,7 @@ const walletClient = createWalletClient({
     lendingPoolAddress,
     uiPoolDataProviderAddress,
     lendingPoolAddressesProvider,
+    liquidationCollateralAssets,
     (opportunities, reservesByAsset, gasPrice, currentTimestamp, usersCount, tookMs) => {
       console.log(`Found ${opportunities.length} opportunities of ${usersCount} users – in ${tookMs}ms`);
 
@@ -115,7 +116,7 @@ const walletClient = createWalletClient({
         sendLiquidationStrategy(walletClient, client, strategy);
       }
     },
-    1000,
+    2000,
   );
 
   listenTokensSell(

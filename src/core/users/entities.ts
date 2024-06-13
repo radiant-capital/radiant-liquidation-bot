@@ -7,3 +7,10 @@ export interface UserDetails {
 }
 
 export type UserDetailsMap = Record<string, UserDetails>;
+
+export function includesCollateralAsset(userDetails: UserDetails, collateralSet: Set<string>): boolean {
+  return userDetails.reserves.some(res => (
+    collateralSet.has(res.underlyingAsset.toLowerCase()) &&
+    res.usageAsCollateralEnabledOnUser
+  ))
+}
