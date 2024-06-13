@@ -86,6 +86,8 @@ export function listenLiquidationOpportunities(
 
       let usersCount = 0;
       for (const user in usersMap) {
+        usersCount++;
+
         if (!includesCollateralAsset(usersMap[user], liquidationCollateralAssetsSet)) {
           continue;
         }
@@ -104,8 +106,6 @@ export function listenLiquidationOpportunities(
             healthFactor,
           });
         }
-
-        usersCount++;
       }
 
       onOpportunitiesFound(opportunities, reservesByAsset, gasPrice, currentTimestamp, usersCount, Date.now() - time);
